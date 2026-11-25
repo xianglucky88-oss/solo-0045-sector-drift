@@ -1,0 +1,106 @@
+{
+  "Sectors": [
+    {
+      "ID": "bank",
+      "Assets": [
+        "bank-mesh"
+      ]
+    },
+    {
+      "ID": "span",
+      "Assets": [
+        "span-mesh"
+      ]
+    },
+    {
+      "ID": "hollow",
+      "Assets": [
+        "hollow-mesh"
+      ]
+    }
+  ],
+  "Assets": [
+    {
+      "ID": "shared",
+      "Bytes": 12,
+      "After": []
+    },
+    {
+      "ID": "bank-mesh",
+      "Bytes": 18,
+      "After": [
+        "shared"
+      ]
+    },
+    {
+      "ID": "span-mesh",
+      "Bytes": 20,
+      "After": [
+        "shared"
+      ]
+    },
+    {
+      "ID": "hollow-mesh",
+      "Bytes": 26,
+      "After": [
+        "shared"
+      ]
+    },
+    {
+      "ID": "horizon",
+      "Bytes": 4,
+      "After": []
+    }
+  ],
+  "Gates": [
+    {
+      "ID": "ramp",
+      "From": "bank",
+      "To": "span",
+      "At": 85,
+      "Reach": 8
+    },
+    {
+      "ID": "chute",
+      "From": "span",
+      "To": "hollow",
+      "At": 95,
+      "Reach": 5,
+      "OneWay": true
+    }
+  ],
+  "Route": [
+    {
+      "Sector": "bank",
+      "Position": 20
+    },
+    {
+      "Sector": "bank",
+      "Position": 83
+    },
+    {
+      "Sector": "span",
+      "Position": 85
+    },
+    {
+      "Sector": "span",
+      "Position": 94
+    },
+    {
+      "Sector": "hollow",
+      "Position": 0
+    },
+    {
+      "Sector": "hollow",
+      "Position": 4
+    }
+  ],
+  "Policy": {
+    "Budget": 56,
+    "Lookahead": 15,
+    "Retain": 2,
+    "Pinned": [
+      "horizon"
+    ]
+  }
+}

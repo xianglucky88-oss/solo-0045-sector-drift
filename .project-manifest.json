@@ -1,0 +1,256 @@
+{
+  "project_shape": "backend",
+  "modules": [
+    {
+      "id": "cmd-server-config",
+      "path": "cmd/server/config.go",
+      "role": "config"
+    },
+    {
+      "id": "cmd-server-main",
+      "path": "cmd/server/main.go",
+      "role": "main"
+    },
+    {
+      "id": "internal-domain-accounting",
+      "path": "internal/domain/accounting.go",
+      "role": "accounting"
+    },
+    {
+      "id": "internal-domain-admission",
+      "path": "internal/domain/admission.go",
+      "role": "admission"
+    },
+    {
+      "id": "internal-domain-assets",
+      "path": "internal/domain/assets.go",
+      "role": "assets"
+    },
+    {
+      "id": "internal-domain-charge",
+      "path": "internal/domain/charge.go",
+      "role": "charge"
+    },
+    {
+      "id": "internal-domain-closure",
+      "path": "internal/domain/closure.go",
+      "role": "closure"
+    },
+    {
+      "id": "internal-domain-compile",
+      "path": "internal/domain/compile.go",
+      "role": "compile"
+    },
+    {
+      "id": "internal-domain-export",
+      "path": "internal/domain/export.go",
+      "role": "export"
+    },
+    {
+      "id": "internal-domain-frame",
+      "path": "internal/domain/frame.go",
+      "role": "frame"
+    },
+    {
+      "id": "internal-domain-graph",
+      "path": "internal/domain/graph.go",
+      "role": "graph"
+    },
+    {
+      "id": "internal-domain-input",
+      "path": "internal/domain/input.go",
+      "role": "input"
+    },
+    {
+      "id": "internal-domain-operations",
+      "path": "internal/domain/operations.go",
+      "role": "operations"
+    },
+    {
+      "id": "internal-domain-priority",
+      "path": "internal/domain/priority.go",
+      "role": "priority"
+    },
+    {
+      "id": "internal-domain-replay",
+      "path": "internal/domain/replay.go",
+      "role": "replay"
+    },
+    {
+      "id": "internal-domain-retention",
+      "path": "internal/domain/retention.go",
+      "role": "retention"
+    },
+    {
+      "id": "internal-domain-reverse",
+      "path": "internal/domain/reverse.go",
+      "role": "reverse"
+    },
+    {
+      "id": "internal-domain-sectors",
+      "path": "internal/domain/sectors.go",
+      "role": "sectors"
+    },
+    {
+      "id": "internal-domain-set",
+      "path": "internal/domain/set.go",
+      "role": "set"
+    },
+    {
+      "id": "internal-domain-topology",
+      "path": "internal/domain/topology.go",
+      "role": "topology"
+    },
+    {
+      "id": "internal-domain-transitions",
+      "path": "internal/domain/transitions.go",
+      "role": "transitions"
+    },
+    {
+      "id": "internal-domain-traversal",
+      "path": "internal/domain/traversal.go",
+      "role": "traversal"
+    },
+    {
+      "id": "internal-domain-validate",
+      "path": "internal/domain/validate.go",
+      "role": "validate"
+    },
+    {
+      "id": "internal-domain-vicinity",
+      "path": "internal/domain/vicinity.go",
+      "role": "vicinity"
+    },
+    {
+      "id": "internal-service-build",
+      "path": "internal/service/build.go",
+      "role": "build"
+    },
+    {
+      "id": "internal-service-decode",
+      "path": "internal/service/decode.go",
+      "role": "decode"
+    },
+    {
+      "id": "internal-service-download",
+      "path": "internal/service/download.go",
+      "role": "download"
+    },
+    {
+      "id": "internal-service-example",
+      "path": "internal/service/example.go",
+      "role": "example"
+    },
+    {
+      "id": "internal-service-health",
+      "path": "internal/service/health.go",
+      "role": "health"
+    },
+    {
+      "id": "internal-service-output",
+      "path": "internal/service/output.go",
+      "role": "output"
+    },
+    {
+      "id": "internal-service-router",
+      "path": "internal/service/router.go",
+      "role": "router"
+    },
+    {
+      "id": "internal-service-service",
+      "path": "internal/service/service.go",
+      "role": "service"
+    },
+    {
+      "id": "internal-vault-digest",
+      "path": "internal/vault/digest.go",
+      "role": "digest"
+    },
+    {
+      "id": "internal-vault-read",
+      "path": "internal/vault/read.go",
+      "role": "read"
+    },
+    {
+      "id": "internal-vault-stage",
+      "path": "internal/vault/stage.go",
+      "role": "stage"
+    },
+    {
+      "id": "internal-vault-write",
+      "path": "internal/vault/write.go",
+      "role": "write"
+    }
+  ],
+  "workflows": [
+    {
+      "id": "product",
+      "name": "拓扑和驻留编译",
+      "entry": "POST /v1/build",
+      "success": "按真实门位置检查路线，再按需驻留和依赖顺序编译帧。",
+      "failure": "非法跨区、循环依赖或强制驻留超预算返回 422。",
+      "verification": "python3 -B tools/verify.py product",
+      "steps": [
+        "POST /v1/build",
+        "按真实门位置检查路线，再按需驻留和依赖顺序编译帧。"
+      ],
+      "module_ids": [
+        "internal-domain-compile",
+        "internal-domain-traversal",
+        "internal-domain-closure",
+        "internal-domain-admission",
+        "internal-domain-operations",
+        "internal-domain-replay"
+      ]
+    },
+    {
+      "id": "persistence",
+      "name": "成品归档与复取",
+      "entry": "POST /v1/build、GET /v1/artifacts/{digest}",
+      "success": "重复提交同一成品只归档一次；重启后复取字节相同。",
+      "failure": "内容被改动或格式不符时不会把错误数据当成指定制品返回。",
+      "verification": "python3 -B tools/verify.py persistence",
+      "steps": [
+        "POST /v1/build、GET /v1/artifacts/{digest}",
+        "重复提交同一成品只归档一次；重启后复取字节相同。"
+      ],
+      "module_ids": [
+        "internal-service-build",
+        "internal-vault-write",
+        "internal-vault-stage",
+        "internal-vault-read",
+        "internal-service-download"
+      ]
+    },
+    {
+      "id": "contract",
+      "name": "输入与 HTTP 合同",
+      "entry": "GET /v1/example、POST /v1/build",
+      "success": "内置合成请求以 JSON 提供，按入口契约接收。",
+      "failure": "错误媒体类型、未知字段、多余内容与超长输入分级拒绝。",
+      "verification": "python3 -B tools/verify.py contract",
+      "steps": [
+        "GET /v1/example、POST /v1/build",
+        "内置合成请求以 JSON 提供，按入口契约接收。"
+      ],
+      "module_ids": [
+        "internal-service-example",
+        "internal-service-router",
+        "internal-service-decode",
+        "internal-service-output"
+      ]
+    }
+  ],
+  "complexity": {
+    "mechanisms": [
+      "policy_rules",
+      "capacity",
+      "error_propagation",
+      "export_freeze",
+      "idempotency",
+      "concurrency",
+      "snapshot_consistency",
+      "versioning_audit"
+    ]
+  }
+}
