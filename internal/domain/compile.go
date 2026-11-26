@@ -3,6 +3,9 @@ package domain
 import "fmt"
 
 func compile(r Request) (Plan, error) {
+	if q, ok := prepareQuality(&r); ok {
+		return compileQuality(r, q)
+	}
 	plan := Plan{Schema: "sector-stream/v1", Budget: r.Policy.Budget}
 	if err := validate(r); err != nil {
 		return plan, err
@@ -49,7 +52,15 @@ func compile(r Request) (Plan, error) {
 				return plan, err
 			}
 		}
-		frame := Frame{i, v, groups[v.Sector].sorted(), next.sorted(), replay.bytes, ops, decisions}
+		frame := Frame{
+			Index:      i,
+			Visit:      v,
+			Required:   groups[v.Sector].sorted(),
+			Resident:   next.sorted(),
+			Bytes:      replay.bytes,
+			Operations: ops,
+			Decisions:  decisions,
+		}
 		plan.Usage.record(frame, assets)
 		plan.Frames = append(plan.Frames, frame)
 	}

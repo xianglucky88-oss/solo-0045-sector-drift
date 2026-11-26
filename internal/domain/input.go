@@ -1,11 +1,18 @@
 package domain
 
+import "encoding/json"
+
 type Request struct {
 	Sectors []Sector
 	Assets  []Asset
 	Gates   []Gate
 	Route   []Visit
 	Policy  Policy
+
+	// raw keeps the original JSON object so the adaptive-quality planner can
+	// accept the many field spellings used by quality-segment requests. It is
+	// ignored by encoding/json and by positional-free struct literals.
+	raw map[string]json.RawMessage
 }
 type Sector struct {
 	ID     string
