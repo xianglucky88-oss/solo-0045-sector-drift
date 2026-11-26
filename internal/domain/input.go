@@ -12,9 +12,12 @@ type Sector struct {
 	Assets []string
 }
 type Asset struct {
-	ID    string
-	Bytes int64
-	After []string
+	ID          string
+	Bytes       int64
+	After       []string
+	Align       int64  `json:",omitempty"`
+	FixedOffset *int64 `json:",omitempty"`
+	FirstOffset *int64 `json:",omitempty"`
 }
 type Gate struct {
 	ID, From, To string
@@ -29,4 +32,8 @@ type Policy struct {
 	Budget            int64
 	Lookahead, Retain int
 	Pinned            []string
+	Heap              *HeapPolicy `json:",omitempty"`
+}
+type HeapPolicy struct {
+	Capacity int64
 }

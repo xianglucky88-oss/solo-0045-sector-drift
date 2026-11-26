@@ -19,6 +19,16 @@ curl -fsS -H 'Content-Type: application/json' --data-binary @request.json http:/
 
 取返回 JSON 里的 `artifact` 路径，向同一服务发送 GET，获得 `stream-plan.json`。输出摘要是交付原始字节的 SHA-256。
 
+## 显存堆模式
+
+请求在 `Policy` 上提供 `"Heap": {"Capacity": 128}` 即启用单块连续显存堆；容量为 0 时回退用 `Budget`，不提供 `Heap` 的请求保持原有字节预算行为。资源字段可声明：
+
+- `Align`：2 的幂对齐，缺省为 1
+- `FixedOffset`：永久固定地址，不可搬移、卸载不回收
+- `FirstOffset`：仅约束首帧那次装入的偏移，资源必须在帧 0 必需闭包内
+
+堆模式产物逐帧给出带地址的 `load`（`To`）、`move`（`From`/`To`）、`evict`（`From`）动作和帧末 `Layout`；搬移始终先复制到完整、空闲、对齐且与源不相交的区间再释放原址。必需资源无法在某帧合法交接时，编译报出首个失败帧并拒绝生成成品。计划在发布前会从空堆完整重放校验。
+
 ## 核验
 
 `go build ./...` 构建全部 Go 包。安装 Python 3.9+ 后运行 `python3 -B tools/verify.py all`：启动临时回环服务，用内置样例验证实际产物与拒绝边界、并发去重、重启复取和损坏拒绝，随后关闭实例。完整测试套件暂缓。详见 [PROJECT_SPEC.md](PROJECT_SPEC.md)。

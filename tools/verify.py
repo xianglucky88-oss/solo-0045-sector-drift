@@ -80,8 +80,8 @@ def contract(s):
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else 'all'
-    if mode not in ('product', 'persistence', 'contract', 'all'):
-        raise SystemExit('mode: product | persistence | contract | all')
+    if mode not in ('product', 'persistence', 'contract', 'heap', 'all'):
+        raise SystemExit('mode: product | persistence | contract | heap | all')
     with tempfile.TemporaryDirectory(prefix='media-workflow-') as root:
         binary, data = Path(root)/'server', Path(root)/'artifacts'
         subprocess.run(['go','build','-o',str(binary),'./cmd/server'], check=True)
@@ -90,6 +90,8 @@ def main():
                 contract(s)
             if mode in ('product', 'all'):
                 check_product(s)
+            if mode in ('heap', 'all'):
+                check_heap(s)
             if mode in ('persistence', 'all'):
                 example = s.demo()
                 with concurrent.futures.ThreadPoolExecutor(2) as pool:
@@ -147,6 +149,73 @@ def check_product(s):
         if invalid == 'direction': broken['Route'] += [{'Sector':'span','Position':95}]
         status, _, body = s.post(broken)
         assert status == 422 and 'error' in json.loads(body), (invalid, status, body)
+
+
+def check_heap(s):
+    spec = s.demo()
+    capacity = 128
+    spec['Policy']['Heap'] = {'Capacity': capacity}
+    # Fixed pin in the middle, a one-shot first-frame offset, and alignment.
+    assets = {a['ID']: a for a in spec['Assets']}
+    assets['horizon']['FixedOffset'] = 64
+    assets['shared']['FirstOffset'] = 0
+    assets['shared']['Align'] = 16
+    row = receipt(s.post(spec))
+    plan = json.loads(fetch(s, row))
+    assert plan['Heap'] == {'Capacity': capacity}
+    assert plan['Budget'] == spec['Policy']['Budget']
+    intervals, resident = {}, set()
+    for frame in plan['Frames']:
+        for op in frame['Operations']:
+            kind, asset = op['Action'], op['Asset']
+            size = assets[asset]['Bytes']
+            if kind == 'load':
+                assert 'To' in op and asset not in resident
+                at = op['To']
+                assert at % (assets[asset].get('Align') or 1) == 0
+                resident.add(asset)
+                intervals[asset] = (at, at + size)
+            elif kind == 'move':
+                assert op['From'] == intervals[asset][0] and op['To'] != op['From']
+                assert asset != 'horizon', 'fixed asset must never move'
+                dst = (op['To'], op['To'] + size)
+                for other, seg in intervals.items():
+                    if other != asset:
+                        assert not (dst[0] < seg[1] and seg[0] < dst[1])
+                intervals[asset] = dst
+            else:
+                assert kind == 'evict' and op['From'] == intervals[asset][0]
+                resident.remove(asset)
+                del intervals[asset]
+            assert all(0 <= seg[0] and seg[1] <= capacity for seg in intervals.values())
+            segs = sorted(intervals.values())
+            for left, right in zip(segs, segs[1:]):
+                assert left[1] <= right[0]
+            assert all(set(assets[a]['After']) <= resident for a in resident)
+        assert resident == set(frame['Resident'])
+        assert {p['Asset']: (p['Offset'], p['Offset'] + p['Size']) for p in frame['Layout']} == intervals
+        for req in frame['Required']:
+            assert req in resident
+    assert intervals['horizon'] == (64, 68)
+    f0_loads = {op['Asset']: op['To'] for op in plan['Frames'][0]['Operations'] if op['Action'] == 'load'}
+    assert f0_loads.get('shared') == 0
+    # Same input compiled twice yields the identical content-addressed plan.
+    assert receipt(s.post(deepcopy(spec)))['digest'] == row['digest']
+    # A fixed offset colliding with the first-frame reservation is rejected.
+    broken = deepcopy(spec)
+    broken['Assets'][0]['FixedOffset'] = 8  # shared also owns first offset 0..12
+    status, _, body = s.post(broken)
+    assert status == 422 and 'error' in json.loads(body)
+    # First-frame offsets on an asset not mandatory on frame 0 are rejected.
+    broken = deepcopy(spec)
+    broken['Assets'][2]['FirstOffset'] = 32  # span-mesh only enters later
+    status, _, body = s.post(broken)
+    assert status == 422 and 'first-frame offset' in json.loads(body)['error']
+    # Requests without Heap keep the original shape: no addresses, no layout.
+    legacy_plan = json.loads(fetch(s, receipt(s.post(s.demo()))))
+    assert 'Heap' not in legacy_plan
+    assert all('Layout' not in f and all('From' not in op and 'To' not in op for op in f['Operations']) for f in legacy_plan['Frames'])
+    print('heap: passed')
 
 
 if __name__ == '__main__':

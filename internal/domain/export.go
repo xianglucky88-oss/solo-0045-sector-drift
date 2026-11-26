@@ -5,10 +5,15 @@ import "encoding/json"
 type Plan struct {
 	Schema    string
 	Budget    int64
+	Heap      *HeapReport `json:",omitempty"`
 	Pinned    []string
 	Frames    []Frame
 	Crossings []Crossing
 	Usage     Usage
+}
+
+type HeapReport struct {
+	Capacity int64
 }
 
 const Filename = "stream-plan.json"
