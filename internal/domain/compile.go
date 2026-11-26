@@ -14,6 +14,9 @@ func compile(r Request) (Plan, error) {
 	if err := knownAssets(r.Policy.Pinned, assets); err != nil {
 		return plan, err
 	}
+	if err := validateLeaseDeclarations(collectLeases(r), assets); err != nil {
+		return plan, err
+	}
 	sectors, err := indexSectors(r.Sectors, assets)
 	if err != nil {
 		return plan, err

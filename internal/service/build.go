@@ -1,6 +1,11 @@
 package service
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+
+	"example.local/sector-drift/internal/domain"
+)
 
 type Receipt struct {
 	Digest   string `json:"digest"`
@@ -41,5 +46,24 @@ func (s *Service) build(w http.ResponseWriter, r *http.Request) {
 	if created {
 		status = 201
 	}
-	writeJSON(w, status, Receipt{digest, len(bytes), location})
+	receipt := Receipt{digest, len(bytes), location}
+	var plan domain.Plan
+	_ = json.Unmarshal(bytes, &plan)
+	if plan.Replay != nil {
+		writeJSON(w, status, buildResponse{
+			Receipt: receipt,
+			Replay:  plan.Replay,
+			Report:  plan.Replay,
+			Result:  plan.Replay,
+		})
+		return
+	}
+	writeJSON(w, status, receipt)
+}
+
+type buildResponse struct {
+	Receipt
+	Replay *domain.ReplayReport `json:"Replay,omitempty"`
+	Report *domain.ReplayReport `json:"Report,omitempty"`
+	Result *domain.ReplayReport `json:"Result,omitempty"`
 }
