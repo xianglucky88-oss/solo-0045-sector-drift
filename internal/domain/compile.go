@@ -3,6 +3,30 @@ package domain
 import "fmt"
 
 func compile(r Request) (Plan, error) {
+	// A Route made of signpost references is resolved and then compiled by
+	// the established explicit-route path.
+	if len(r.Route) == 0 && len(r.RouteRefs) > 0 && r.raw != nil {
+		spRaw := findConceptRaw(r.raw, "signposts", signpostKeys)
+		signposts := parseSignposts(spRaw)
+		if resolved, err := resolveRouteRefs(r.RouteRefs, signposts); err == nil {
+			r.Route = resolved
+		}
+	}
+	// An explicitly authored route keeps the established compiler exactly.
+	if len(r.Route) > 0 {
+		return compileAuthored(r)
+	}
+	search, ok, err := buildSearch(r)
+	if err != nil {
+		return Plan{Schema: "sector-stream/v1", Budget: r.Policy.Budget}, err
+	}
+	if ok && search.Start != "" && search.End != "" && len(search.Signposts) > 0 {
+		return compileSearch(r, search)
+	}
+	return compileAuthored(r)
+}
+
+func compileAuthored(r Request) (Plan, error) {
 	plan := Plan{Schema: "sector-stream/v1", Budget: r.Policy.Budget}
 	if err := validate(r); err != nil {
 		return plan, err
@@ -49,7 +73,15 @@ func compile(r Request) (Plan, error) {
 				return plan, err
 			}
 		}
-		frame := Frame{i, v, groups[v.Sector].sorted(), next.sorted(), replay.bytes, ops, decisions}
+		frame := Frame{
+			Index:      i,
+			Visit:      v,
+			Required:   groups[v.Sector].sorted(),
+			Resident:   next.sorted(),
+			Bytes:      replay.bytes,
+			Operations: ops,
+			Decisions:  decisions,
+		}
 		plan.Usage.record(frame, assets)
 		plan.Frames = append(plan.Frames, frame)
 	}
