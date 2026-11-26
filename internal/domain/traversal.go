@@ -1,26 +1,27 @@
 package domain
 
-import "fmt"
+type Crossing struct {
+	Step           int
+	Gate, From, To string
+}
 
-func verifyRoute(route []Visit, sectors map[string]Sector, gates map[string][]Gate) error {
-	for i, v := range route {
-		if sectors[v.Sector].ID == "" || v.Position < 0 || v.Position > 10000 {
-			return fmt.Errorf("visit %d is outside the authored world", i)
-		}
-		if i == 0 || v.Sector == route[i-1].Sector {
+func crossings(route []Visit, gates map[string][]Gate, availability map[string]gateAvailability) []Crossing {
+	out := make([]Crossing, 0)
+	for i := 1; i < len(route); i++ {
+		a, b := route[i-1], route[i]
+		if a.Sector == b.Sector {
 			continue
 		}
-		prior := route[i-1]
-		legal := false
-		for _, g := range gates[prior.Sector] {
-			if g.To == v.Sector && abs(prior.Position-g.At) <= g.Reach {
-				legal = true
-				break
+		for _, g := range gates[a.Sector] {
+			if g.To != b.Sector || abs(a.Position-g.At) > g.Reach {
+				continue
 			}
-		}
-		if !legal {
-			return fmt.Errorf("visit %d crosses without an open gate", i)
+			if av, ok := availability[g.ID]; ok && (!av.openAt(i-1) || !av.openAt(i)) {
+				continue
+			}
+			out = append(out, Crossing{i, g.ID, a.Sector, b.Sector})
+			break
 		}
 	}
-	return nil
+	return out
 }
