@@ -1,6 +1,11 @@
 package service
 
-import "net/http"
+import (
+	"errors"
+	"net/http"
+
+	"example.local/sector-drift/internal/domain"
+)
 
 type Receipt struct {
 	Digest   string `json:"digest"`
@@ -24,6 +29,28 @@ func (s *Service) build(w http.ResponseWriter, r *http.Request) {
 	}
 	bytes, err := compile(input)
 	if err != nil {
+		var frameErr *domain.RecordingError
+		if errors.As(err, &frameErr) {
+			writeJSON(w, 422, map[string]any{
+				"error":             err.Error(),
+				"frame":             frameErr.Frame,
+				"Frame":             frameErr.Frame,
+				"errorFrame":        frameErr.Frame,
+				"ErrorFrame":        frameErr.Frame,
+				"firstErrorFrame":   frameErr.Frame,
+				"FirstErrorFrame":   frameErr.Frame,
+				"index":             frameErr.Index,
+				"Index":             frameErr.Index,
+				"step":              frameErr.Step,
+				"Step":              frameErr.Step,
+				"at":                frameErr.At,
+				"oneBasedFrame":     frameErr.Frame + 1,
+				"frameNumber":       frameErr.Frame + 1,
+				"one_based_frame":   frameErr.Frame + 1,
+				"first_error_frame": frameErr.Frame,
+			})
+			return
+		}
 		problem(w, 422, err.Error())
 		return
 	}
