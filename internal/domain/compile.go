@@ -32,6 +32,18 @@ func compile(r Request) (Plan, error) {
 	consumers := reverseEdges(assets)
 	groups := sectorClosures(sectors, assets)
 	pinned := closure(r.Policy.Pinned, assets)
+	limits := r.streamLimits()
+	if limits.present {
+		streamPlan, err := compileStream(r, assets, order, consumers, groups, pinned, limits)
+		if err != nil {
+			return plan, err
+		}
+		streamPlan.Crossings = crossings(r.Route, gates)
+		if err := replayStreamPlan(streamPlan, assets, consumers, r.Policy.Budget, limits.effective()); err != nil {
+			return plan, err
+		}
+		return streamPlan, nil
+	}
 	plan.Pinned = pinned.sorted()
 	plan.Crossings = crossings(r.Route, gates)
 	state := make(history)
@@ -49,7 +61,15 @@ func compile(r Request) (Plan, error) {
 				return plan, err
 			}
 		}
-		frame := Frame{i, v, groups[v.Sector].sorted(), next.sorted(), replay.bytes, ops, decisions}
+		frame := Frame{
+			Index:      i,
+			Visit:      v,
+			Required:   groups[v.Sector].sorted(),
+			Resident:   next.sorted(),
+			Bytes:      replay.bytes,
+			Operations: ops,
+			Decisions:  decisions,
+		}
 		plan.Usage.record(frame, assets)
 		plan.Frames = append(plan.Frames, frame)
 	}

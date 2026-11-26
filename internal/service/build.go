@@ -1,6 +1,10 @@
 package service
 
-import "net/http"
+import (
+	"errors"
+	"example.local/sector-drift/internal/domain"
+	"net/http"
+)
 
 type Receipt struct {
 	Digest   string `json:"digest"`
@@ -24,6 +28,11 @@ func (s *Service) build(w http.ResponseWriter, r *http.Request) {
 	}
 	bytes, err := compile(input)
 	if err != nil {
+		var handover *domain.HandoverError
+		if errors.As(err, &handover) {
+			handoverProblem(w, handover)
+			return
+		}
 		problem(w, 422, err.Error())
 		return
 	}
