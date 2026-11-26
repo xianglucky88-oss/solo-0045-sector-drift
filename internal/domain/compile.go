@@ -3,9 +3,23 @@ package domain
 import "fmt"
 
 func compile(r Request) (Plan, error) {
+	tl, err := timelineFromStruct(&r)
+	if err != nil {
+		return Plan{Schema: "sector-stream/v1", Budget: r.Policy.Budget}, err
+	}
+	if tl == nil {
+		return compileLegacy(r)
+	}
+	return compileMulti(r, tl)
+}
+
+func compileLegacy(r Request) (Plan, error) {
 	plan := Plan{Schema: "sector-stream/v1", Budget: r.Policy.Budget}
 	if err := validate(r); err != nil {
 		return plan, err
+	}
+	if len(r.Route) < 1 {
+		return plan, fmt.Errorf("invalid sector, asset, gate or route count")
 	}
 	assets, err := indexAssets(r.Assets)
 	if err != nil {
@@ -49,7 +63,7 @@ func compile(r Request) (Plan, error) {
 				return plan, err
 			}
 		}
-		frame := Frame{i, v, groups[v.Sector].sorted(), next.sorted(), replay.bytes, ops, decisions}
+		frame := Frame{i, v, groups[v.Sector].sorted(), next.sorted(), replay.bytes, ops, decisions, nil, nil, nil}
 		plan.Usage.record(frame, assets)
 		plan.Frames = append(plan.Frames, frame)
 	}

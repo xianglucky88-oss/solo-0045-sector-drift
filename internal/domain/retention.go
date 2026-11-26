@@ -15,7 +15,7 @@ func (h history) age(step, keep int) []Candidate {
 			delete(h, s)
 			continue
 		}
-		out = append(out, Candidate{s, "recent", delta})
+		out = append(out, Candidate{Sector: s, Reason: "recent", Distance: delta})
 	}
 	return out
 }

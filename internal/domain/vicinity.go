@@ -5,6 +5,11 @@ import "sort"
 type Candidate struct {
 	Sector, Reason string
 	Distance       int
+
+	// Camera attribution for dual-camera choice rows. Empty in legacy plans
+	// and omitted from JSON so the original artifact bytes stay unchanged.
+	Camera string `json:"Camera,omitempty"`
+	Shot   string `json:"Shot,omitempty"`
 }
 
 func abs(a int) int {
@@ -21,7 +26,7 @@ func nearby(v Visit, gates []Gate, look int) []Candidate {
 	for _, g := range gates {
 		d := abs(v.Position - g.At)
 		if d <= look {
-			choices = append(choices, Candidate{g.To, "gate:" + g.ID, d})
+			choices = append(choices, Candidate{Sector: g.To, Reason: "gate:" + g.ID, Distance: d})
 		}
 	}
 	sort.Slice(choices, func(i, j int) bool {
