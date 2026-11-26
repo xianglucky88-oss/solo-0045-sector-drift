@@ -24,6 +24,28 @@ func (s *Service) download(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "cannot read artifact")
 		return
 	}
+
+	// A drill selector on the artifact URL replays a fault against this plan.
+	if r.Method == http.MethodGet && queryFrame(r) != nil {
+		frame := *queryFrame(r)
+		asset := queryAsset(r)
+		if asset == "" {
+			problem(w, http.StatusUnprocessableEntity, "drill query requires asset/member")
+			return
+		}
+		report, derr := domain.DrillFromArtifact(data, frame, asset)
+		if derr != nil {
+			domainProblem(w, derr)
+			return
+		}
+		out, _ := domain.MarshalDrill(report)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(out)
+		return
+	}
+
 	w.Header().Set("Content-Disposition", `attachment; filename="`+domain.Filename+`"`)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")

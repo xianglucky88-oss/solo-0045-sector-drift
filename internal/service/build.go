@@ -1,6 +1,8 @@
 package service
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type Receipt struct {
 	Digest   string `json:"digest"`
@@ -22,9 +24,18 @@ func (s *Service) build(w http.ResponseWriter, r *http.Request) {
 		problem(w, status, err.Error())
 		return
 	}
-	bytes, err := compile(input)
+	// A digest reference plus a fault selector is a drill against an existing
+	// artifact, even when posted to /v1/build.
+	if _, _, requested, terr := input.DrillTarget(); terr == nil && requested {
+		digest := firstDigest(input.Digest, input.Artifact, input.ArtifactID, input.Ref)
+		if digest != "" && !looksLikeFullSpec(&input) {
+			s.respondDrill(w, r, input, nil, nil)
+			return
+		}
+	}
+	bytes, report, err := compileEx(input)
 	if err != nil {
-		problem(w, 422, err.Error())
+		domainProblem(w, err)
 		return
 	}
 	if r.Context().Err() != nil {
@@ -40,6 +51,13 @@ func (s *Service) build(w http.ResponseWriter, r *http.Request) {
 	status = 200
 	if created {
 		status = 201
+	}
+	if report != nil {
+		// Inline the drill facts next to the receipt while keeping the receipt
+		// fields identical for generic clients.
+		payload := drillPayload(report, digest, len(bytes), location)
+		writeJSON(w, status, payload)
+		return
 	}
 	writeJSON(w, status, Receipt{digest, len(bytes), location})
 }

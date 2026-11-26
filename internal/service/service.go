@@ -14,3 +14,6 @@ func New(path string) *Service {
 	return &Service{vault: vault.Vault{Dir: path}, slots: make(chan struct{}, 2)}
 }
 func compile(body domain.Request) ([]byte, error) { return domain.Build(body) }
+func compileEx(body domain.Request) ([]byte, *domain.DrillReport, error) {
+	return domain.BuildEx(body)
+}

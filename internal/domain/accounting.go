@@ -10,10 +10,14 @@ func (u *Usage) record(f Frame, assets map[string]Asset) {
 		u.PeakBytes = f.Bytes
 	}
 	for _, op := range f.Operations {
+		var delta int64
+		for _, id := range opUnits(op) {
+			delta += assets[id].Bytes
+		}
 		if op.Action == "load" {
-			u.LoadedBytes += assets[op.Asset].Bytes
+			u.LoadedBytes += delta
 		} else {
-			u.EvictedBytes += assets[op.Asset].Bytes
+			u.EvictedBytes += delta
 		}
 	}
 	for _, c := range f.Decisions {
